@@ -7,17 +7,11 @@ import Control.Monad (ap)
 import Data.Functor.Foldable
 import Data.Monoid ((<>))
 
-data SyntaxF term bind name note fvar rec
+data SyntaxF term bind name note fvar r
     = PureF note fvar
-    | TermF note (term rec)
-    | BindF note (fvar -> Maybe name) (bind rec)
-
-instance (Functor b, Functor f) => Functor (SyntaxF f b n s a) where
-    fmap f =
-      \case
-        PureF s a -> PureF s a
-        TermF s r -> TermF s (f <$> r)
-        BindF s abst r -> BindF s abst (f <$> r)
+    | TermF note (term r)
+    | BindF note (fvar -> Maybe name) (bind r)
+  deriving (Functor)
 
 data Syntax
     term  {-^ base functor of terms -}
@@ -29,17 +23,20 @@ data Syntax
     | Term note (term (Syntax term bind name note fvar))
     | Bind note (bind (Scope name (Syntax term bind name note) fvar))
 
-type instance Base (Syntax f b n s v) = SyntaxF f b n s v
+type instance Base (Syntax term bind name note fvar) = SyntaxF term bind name note fvar
 
-instance (Functor b, Functor f, Monoid s) => Corecursive (Syntax f b n s a) where
-  embed =
-    \case
-      PureF s a -> Pure s a
-      TermF s term -> Term s term
-      BindF s abst expr -> Bind s (Scope.abstract abst <$> expr)
+instance
+    (Functor term, Functor bind, Monoid note) =>
+    Corecursive (Syntax term bind name note fvar)
+  where
+    embed =
+      \case
+        PureF note a         -> Pure note a
+        TermF note term      -> Term note term
+        BindF note abst expr -> Bind note (Scope.abstract abst <$> expr)
 
-ann :: Lens' (Syntax term bind name note fvar) note
-ann = lens get1 set1
+annotation :: Lens' (Syntax term bind name note fvar) note
+annotation = lens get1 set1
   where
     get1 =
       \case
@@ -57,22 +54,34 @@ data LambdaF a = Apply a a
 
 type Lambda = Syntax LambdaF Identity ()
 
-instance (Functor f, Functor b) => Functor (Syntax f b n s) where
+instance (Functor term, Functor bind) => Functor (Syntax term bind name note) where
     fmap f =
       \case
         Pure note a     -> Pure note (f a)
         Term note term  -> Term note (fmap (fmap f) term )
         Bind note scope -> Bind note (fmap (fmap f) scope)
 
-instance (Functor f, Functor b, Monoid s) => Applicative (Syntax f b n s) where
+instance
+    ( Functor term
+    , Functor bind
+    , Monoid note
+    ) =>
+    Applicative (Syntax term bind name note)
+  where
     pure = Pure mempty
     (<*>) = ap
 
-instance (Functor f, Functor b, Monoid s) => Monad (Syntax f b n s) where
+instance
+    ( Functor term
+    , Functor bind
+    , Monoid note
+    ) =>
+    Monad (Syntax term bind name note)
+  where
     return = pure
     (>>=) syn sub =
       case syn of
-        Pure note a     -> over ann (note <>) (sub a)
+        Pure note a     -> over annotation (note <>) (sub a)
         Term note term  -> Term note (( >>= sub) <$> term )
         Bind note scope -> Bind note ((>>>= sub) <$> scope)
 
