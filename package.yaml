@@ -22,6 +22,7 @@ default-extensions:
   - DeriveFoldable
   - DeriveFunctor
   - DeriveTraversable
+  - FlexibleInstances
   - LambdaCase
   - RankNTypes
   - TypeFamilies

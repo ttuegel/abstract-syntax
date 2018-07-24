@@ -27,6 +27,22 @@ type instance Base (Syntax term bind name note fvar) = SyntaxF term bind name no
 
 instance
     (Functor term, Functor bind, Monoid note) =>
+    Recursive (Syntax term bind name note (Fix (Var name)))
+  where
+    project =
+      \case
+        Pure note a -> PureF note a
+        Term note term -> TermF note term
+        Bind note scope -> BindF note abst (Scope.instantiate inst <$> scope)
+      where
+        abst =
+          \case
+            Fix (B name) -> Just name
+            _ -> Nothing
+        inst = pure . Fix . B
+
+instance
+    (Functor term, Functor bind, Monoid note) =>
     Corecursive (Syntax term bind name note fvar)
   where
     embed =
