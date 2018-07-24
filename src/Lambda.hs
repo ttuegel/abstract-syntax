@@ -15,7 +15,7 @@ data SyntaxF term bind name note fvar r
     = PureF note fvar
     | TermF note (term r)
     | BindF note (fvar -> Maybe name) (bind r)
-  deriving (Functor)
+  deriving (Foldable, Functor, Traversable)
 
 data Syntax
     term  {-^ base functor of terms -}
