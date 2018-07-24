@@ -26,6 +26,7 @@ data Syntax
     = Pure note fvar
     | Term note (term (Syntax term bind name note fvar))
     | Bind note (bind (Scope name (Syntax term bind name note) fvar))
+  deriving (Foldable, Functor, Traversable)
 
 deriveRead1 ''Syntax
 instance
@@ -176,13 +177,6 @@ data LambdaF a = Apply a a
   deriving (Eq, Foldable, Functor, Traversable)
 
 type Lambda = Syntax LambdaF Identity ()
-
-instance (Functor term, Functor bind) => Functor (Syntax term bind name note) where
-    fmap f =
-      \case
-        Pure note a     -> Pure note (f a)
-        Term note term  -> Term note (fmap (fmap f) term )
-        Bind note scope -> Bind note (fmap (fmap f) scope)
 
 instance
     ( Functor term
