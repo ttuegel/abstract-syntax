@@ -4,6 +4,7 @@ import Bound
 import qualified Bound.Scope as Scope
 import Control.Lens
 import Control.Monad (ap)
+import Data.Functor.Classes
 import Data.Functor.Foldable
 import Data.Monoid ((<>))
 
@@ -22,6 +23,85 @@ data Syntax
     = Pure note fvar
     | Term note (term (Syntax term bind name note fvar))
     | Bind note (bind (Scope name (Syntax term bind name note) fvar))
+
+{-| @note@ does not participate in equality.
+ -}
+instance
+    ( Eq1 term, Functor term
+    , Eq1 bind, Functor bind
+    , Eq name
+    , Monoid note
+    ) =>
+    Eq1 (Syntax term bind name note)
+  where
+    liftEq eq a b =
+      case a of
+        Pure _ fvara ->
+          case b of
+            Pure _ fvarb -> eq fvara fvarb
+            _ -> False
+        Term _ terma ->
+          case b of
+            Term _ termb -> liftEq (liftEq eq) terma termb
+            _ -> False
+        Bind _ scopea ->
+          case b of
+            Bind _ scopeb -> liftEq (liftEq eq) scopea scopeb
+            _ -> False
+
+{-| @note@ does not participate in equality.
+ -}
+instance
+    ( Eq1 term, Functor term
+    , Eq1 bind, Functor bind
+    , Eq name
+    , Monoid note
+    , Eq fvar
+    ) =>
+    Eq (Syntax term bind name note fvar)
+  where
+    (==) = eq1
+
+{-| @note@ does not participate in comparison.
+ -}
+instance
+    ( Functor term, Ord1 term
+    , Functor bind, Ord1 bind
+    , Eq name, Ord name
+    , Monoid note
+    ) =>
+    Ord1 (Syntax term bind name note)
+  where
+    liftCompare compare_ a b =
+      case a of
+        Pure _ fvara ->
+          case b of
+            Pure _ fvarb -> compare_ fvara fvarb
+            Term {} -> LT
+            Bind {} -> LT
+        Term _ terma ->
+          case b of
+            Pure {} -> GT
+            Term _ termb -> liftCompare (liftCompare compare_) terma termb
+            Bind {} -> LT
+        Bind _ scopea ->
+          case b of
+            Pure {} -> GT
+            Term {} -> GT
+            Bind _ scopeb -> liftCompare (liftCompare compare_) scopea scopeb
+
+{-| @note@ does not participate in comparison.
+ -}
+instance
+    ( Functor term, Ord1 term
+    , Functor bind, Ord1 bind
+    , Eq name, Ord name
+    , Monoid note
+    , Ord fvar
+    ) =>
+    Ord (Syntax term bind name note fvar)
+  where
+    compare = compare1
 
 type instance Base (Syntax term bind name note fvar) = SyntaxF term bind name note fvar
 
@@ -66,7 +146,7 @@ annotation = lens get1 set1
         Bind _ scope -> Bind note scope
 
 data LambdaF a = Apply a a
-  deriving (Foldable, Functor, Traversable)
+  deriving (Eq, Foldable, Functor, Traversable)
 
 type Lambda = Syntax LambdaF Identity ()
 
