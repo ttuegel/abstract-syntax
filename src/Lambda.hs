@@ -1,9 +1,12 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Lambda where
 
 import Bound
 import qualified Bound.Scope as Scope
 import Control.Lens
 import Control.Monad (ap)
+import Data.Deriving (deriveRead1, deriveShow1)
 import Data.Functor.Classes
 import Data.Functor.Foldable
 import Data.Monoid ((<>))
@@ -23,6 +26,30 @@ data Syntax
     = Pure note fvar
     | Term note (term (Syntax term bind name note fvar))
     | Bind note (bind (Scope name (Syntax term bind name note) fvar))
+
+deriveRead1 ''Syntax
+instance
+    ( Read1 term
+    , Read1 bind
+    , Read name
+    , Read note
+    , Read fvar
+    ) =>
+    Read (Syntax term bind name note fvar)
+  where
+    readsPrec = readsPrec1
+
+deriveShow1 ''Syntax
+instance
+    ( Show1 term
+    , Show1 bind
+    , Show name
+    , Show note
+    , Show fvar
+    ) =>
+    Show (Syntax term bind name note fvar)
+  where
+    showsPrec = showsPrec1
 
 {-| @note@ does not participate in equality.
  -}
