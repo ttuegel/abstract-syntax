@@ -11,32 +11,42 @@ import Data.Functor.Classes
 import Data.Functor.Foldable
 import Data.Monoid ((<>))
 
-data SyntaxF term bind name note fvar r
+data SyntaxF term bind bvar note fvar r
     = PureF note fvar
     | TermF note (term r)
-    | BindF note (fvar -> Maybe name) (bind r)
+    | BindF note (fvar -> Maybe bvar) (bind r)
   deriving (Foldable, Functor, Traversable)
 
+{-| 'Syntax' generically represents abstract syntax trees with binding.
+
+@term@ is a functor representing the non-binding terms of the syntax. @bind@ is
+a functor representing the binders of the syntax. @bvar@ is the type of bound
+variables; see "Bound.Name" to give bound variables names that do not
+participate in equality. @note@ is the type of annotations given to each node in
+the abstract syntax tree. @fvar@ is the type of subterms of the tree; typically
+this is specialized to the type of free variables.
+
+ -}
 data Syntax
     term  {-^ base functor of terms -}
     bind  {-^ base functor of bindings -}
-    name  {-^ bound names -}
+    bvar  {-^ bound variables -}
     note  {-^ annotation -}
-    fvar  {-^ free variables, or subterms more generally -}
+    fvar  {-^ subterms (typically free variables -}
     = Pure note fvar
-    | Term note (term (Syntax term bind name note fvar))
-    | Bind note (bind (Scope name (Syntax term bind name note) fvar))
+    | Term note (term (Syntax term bind bvar note fvar))
+    | Bind note (bind (Scope bvar (Syntax term bind bvar note) fvar))
   deriving (Foldable, Functor, Traversable)
 
 deriveRead1 ''Syntax
 instance
     ( Read1 term
     , Read1 bind
-    , Read name
+    , Read bvar
     , Read note
     , Read fvar
     ) =>
-    Read (Syntax term bind name note fvar)
+    Read (Syntax term bind bvar note fvar)
   where
     readsPrec = readsPrec1
 
@@ -44,11 +54,11 @@ deriveShow1 ''Syntax
 instance
     ( Show1 term
     , Show1 bind
-    , Show name
+    , Show bvar
     , Show note
     , Show fvar
     ) =>
-    Show (Syntax term bind name note fvar)
+    Show (Syntax term bind bvar note fvar)
   where
     showsPrec = showsPrec1
 
@@ -57,10 +67,10 @@ instance
 instance
     ( Eq1 term, Functor term
     , Eq1 bind, Functor bind
-    , Eq name
+    , Eq bvar
     , Monoid note
     ) =>
-    Eq1 (Syntax term bind name note)
+    Eq1 (Syntax term bind bvar note)
   where
     liftEq eq a b =
       case a of
@@ -82,11 +92,11 @@ instance
 instance
     ( Eq1 term, Functor term
     , Eq1 bind, Functor bind
-    , Eq name
+    , Eq bvar
     , Monoid note
     , Eq fvar
     ) =>
-    Eq (Syntax term bind name note fvar)
+    Eq (Syntax term bind bvar note fvar)
   where
     (==) = eq1
 
@@ -95,10 +105,10 @@ instance
 instance
     ( Functor term, Ord1 term
     , Functor bind, Ord1 bind
-    , Eq name, Ord name
+    , Eq bvar, Ord bvar
     , Monoid note
     ) =>
-    Ord1 (Syntax term bind name note)
+    Ord1 (Syntax term bind bvar note)
   where
     liftCompare compare_ a b =
       case a of
@@ -123,19 +133,19 @@ instance
 instance
     ( Functor term, Ord1 term
     , Functor bind, Ord1 bind
-    , Eq name, Ord name
+    , Eq bvar, Ord bvar
     , Monoid note
     , Ord fvar
     ) =>
-    Ord (Syntax term bind name note fvar)
+    Ord (Syntax term bind bvar note fvar)
   where
     compare = compare1
 
-type instance Base (Syntax term bind name note fvar) = SyntaxF term bind name note fvar
+type instance Base (Syntax term bind bvar note fvar) = SyntaxF term bind bvar note fvar
 
 instance
     (Functor term, Functor bind, Monoid note) =>
-    Recursive (Syntax term bind name note (Fix (Var name)))
+    Recursive (Syntax term bind bvar note (Fix (Var bvar)))
   where
     project =
       \case
@@ -151,7 +161,7 @@ instance
 
 instance
     (Functor term, Functor bind, Monoid note) =>
-    Corecursive (Syntax term bind name note fvar)
+    Corecursive (Syntax term bind bvar note fvar)
   where
     embed =
       \case
@@ -159,7 +169,7 @@ instance
         TermF note term      -> Term note term
         BindF note abst expr -> Bind note (Scope.abstract abst <$> expr)
 
-annotation :: Lens' (Syntax term bind name note fvar) note
+annotation :: Lens' (Syntax term bind bvar note fvar) note
 annotation = lens get1 set1
   where
     get1 =
@@ -183,7 +193,7 @@ instance
     , Functor bind
     , Monoid note
     ) =>
-    Applicative (Syntax term bind name note)
+    Applicative (Syntax term bind bvar note)
   where
     pure = Pure mempty
     (<*>) = ap
@@ -193,7 +203,7 @@ instance
     , Functor bind
     , Monoid note
     ) =>
-    Monad (Syntax term bind name note)
+    Monad (Syntax term bind bvar note)
   where
     return = pure
     (>>=) syn sub =
