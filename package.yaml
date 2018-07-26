@@ -1,13 +1,13 @@
-name:                syntax
+name:                abstract-syntax
 version:             0.1.0.0
 #synopsis:
 #description:
-homepage:            https://github.com/githubuser/syntax#readme
+homepage:            https://github.com/ttuegel/abstract-syntax#readme
 license:             BSD3
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2018 Author name here
-category:            Web
+author:              Thomas Tuegel
+maintainer:          ttuegel@mailbox.org
+copyright:           2018 Thomas Tuegel
+category:            Language
 
 extra-source-files:
   - README.md
